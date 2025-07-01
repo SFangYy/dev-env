@@ -1,0 +1,65 @@
+# Use your existing base image as the starting point
+FROM picker-basic-env:latest
+# Use your existing base image as the starting point
+
+# Ensure we are running as root for package installations
+USER root
+
+# Set environment variables for non-interactive installations
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install SSH and VNC server, XFCE4 desktop environment, and LightDM
+# Assuming Debian/Ubuntu base image. Adjust for Alpine (apk) or CentOS/RHEL (yum/dnf).
+RUN apt-get update && \
+    apt-get install -y openssh-server tigervnc-standalone-server xfce4 xfce4-goodies lightdm && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Configure SSH for the 'user' user
+#RUN mkdir /var/run/sshd
+# Disable password authentication entirely for SSH for better security if using keys
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+# Permit root login for testing purposes if needed (you can remove this line if strictly using 'user' with keys)
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+# SSH will listen on all interfaces
+RUN sed -i 's/#ListenAddress 0.0.0.0/ListenAddress 0.0.0.0/' /etc/ssh/sshd_config
+
+# Ensure the .ssh directory exists and has correct permissions for 'user'
+# Assuming 'user' exists and is named 'user' with home directory /home/user
+RUN mkdir -p /home/user/.ssh && \
+    chmod 700 /home/user/.ssh && \
+    chown user:user /home/user/.ssh
+
+# Configure VNC for the 'user' user
+# Create a VNC password for 'user'. Replace 'your_vnc_password' with a strong password.
+# The VNC password is still necessary for VNC connections.
+RUN mkdir -p /home/user/.vnc && \
+    echo "192837" | vncpasswd -f > /home/user/.vnc/passwd && \
+    chmod 600 /home/user/.vnc/passwd && \
+    chown -R user:user /home/user/.vnc
+
+# Ensure the .Xauthority file can be created and is owned by 'user'
+# This is crucial for X session authentication
+RUN touch /home/user/.Xauthority && \
+    chmod 600 /home/user/.Xauthority && \
+    chown user:user /home/user/.Xauthority
+
+# Create xstartup script for XFCE4, which vncserver will use by default
+COPY xstartup /home/user/.vnc/xstartup
+RUN chmod +x /home/user/.vnc/xstartup && \
+    chown user:user /home/user/.vnc/xstartup 
+
+# Set the VNC display number (e.g., :1) and geometry
+ENV DISPLAY=:1
+ENV VNC_GEOMETRY=1280x800
+ENV VNC_DEPTH=24
+
+# Create a startup script for SSH and VNC
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Expose the ports for SSH (22) and VNC (5901 for display :1)
+EXPOSE 22 5901
+
+# Run the entrypoint script when the container launches
+CMD ["/usr/local/bin/entrypoint.sh"]

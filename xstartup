@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# 将此脚本的输出重定向到日志文件以便调试
+exec > /home/user/.vnc/xstartup.log 2>&1
+
+echo "Starting XFCE4 session..."
+
+# 为 X 会话设置必要的环境变量
+# 这可能与 dbus-launch 重复，但为了健壮性，这样做很好。
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+
+# 确保路径包含 /usr/bin 以便找到 X 应用程序
+export PATH=/usr/bin:$PATH
+
+# 启动 XFCE4 桌面环境。
+# 使用 'exec' 将当前 shell 进程替换为 xfce4，这样更简洁。
+# 这里移除了 '&'，因为 'exec' 会替换进程。
+exec startxfce4
+
+echo "XFCE4 session started or failed."
