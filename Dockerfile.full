@@ -18,40 +18,33 @@ RUN apt-get update && \
 # Configure SSH for the 'user' user
 #RUN mkdir /var/run/sshd
 # Disable password authentication entirely for SSH for better security if using keys
-RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-# Permit root login for testing purposes if needed (you can remove this line if strictly using 'user' with keys)
-RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-# SSH will listen on all interfaces
-RUN sed -i 's/#ListenAddress 0.0.0.0/ListenAddress 0.0.0.0/' /etc/ssh/sshd_config
 
 # Ensure the .ssh directory exists and has correct permissions for 'user'
 # Assuming 'user' exists and is named 'user' with home directory /home/user
-RUN mkdir -p /home/user/.ssh && \
-    chmod 700 /home/user/.ssh && \
-    chown user:user /home/user/.ssh
-
+RUN sed -i 's|^Port .*|Port 22|' /etc/ssh/sshd_config && \
+    sed -i 's|^ListenAddress .*|ListenAddress 0.0.0.0|' /etc/ssh/sshd_config
 # Configure VNC for the 'user' user
 # Create a VNC password for 'user'. Replace 'your_vnc_password' with a strong password.
 # The VNC password is still necessary for VNC connections.
-RUN mkdir -p /home/user/.vnc && \
-    echo "192837" | vncpasswd -f > /home/user/.vnc/passwd && \
-    chmod 600 /home/user/.vnc/passwd && \
-    chown -R user:user /home/user/.vnc
+RUN mkdir -p /home/sfangyy/.vnc && \
+    echo "192837" | vncpasswd -f > /home/sfangyy/.vnc/passwd && \
+    chmod 600 /home/sfangyy/.vnc/passwd && \
+    chown -R sfangyy:sfangyy /home/sfangyy/.vnc
 
 # Ensure the .Xauthority file can be created and is owned by 'user'
 # This is crucial for X session authentication
-RUN touch /home/user/.Xauthority && \
-    chmod 600 /home/user/.Xauthority && \
-    chown user:user /home/user/.Xauthority
+RUN touch /home/sfangyy/.Xauthority && \
+    chmod 600 /home/sfangyy/.Xauthority && \
+    chown sfangyy:sfangyy /home/sfangyy/.Xauthority
 
 # Create xstartup script for XFCE4, which vncserver will use by default
-COPY xstartup /home/user/.vnc/xstartup
-RUN chmod +x /home/user/.vnc/xstartup && \
-    chown user:user /home/user/.vnc/xstartup 
+COPY xstartup /home/sfangyy/.vnc/xstartup
+RUN chmod +x /home/sfangyy/.vnc/xstartup && \
+    chown sfangyy:sfangyy /home/sfangyy/.vnc/xstartup 
 
 # Set the VNC display number (e.g., :1) and geometry
 ENV DISPLAY=:1
-ENV VNC_GEOMETRY=1280x800
+ENV VNC_GEOMETRY=2560x1440
 ENV VNC_DEPTH=24
 
 # Create a startup script for SSH and VNC

@@ -54,6 +54,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libtool \
     openjdk-17-jdk \
     libpcre2-dev \
+    net-tools \
+    dos2unix \
+    lsb \
     help2man && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -108,16 +111,17 @@ RUN mkdir /workspace && \
     chmod 755 /usr/local/bin -R 
 
 # set user and password
-RUN useradd -m -s /bin/bash user && \
-    echo "user:user" | chpasswd && \
-    adduser user sudo && \
+RUN useradd -m -s /bin/bash sfangyy && \
+    echo "sfangyy:192837" | chpasswd && \
+    adduser sfangyy sudo && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
-    chown user:user -R /workspace && \
+    chown sfangyy:sfangyy -R /workspace && \
     chmod 755 /workspace
 
 # Set SSH autostart
 RUN mkdir /var/run/sshd && \
     echo 'root:root' | chpasswd && \
+    echo 'sfangyy:192837' | chpasswd && \
     sed -i 's|#PermitRootLogin prohibit-password|PermitRootLogin yes|' /etc/ssh/sshd_config && \
     sed -i 's|#PasswordAuthentication yes|PasswordAuthentication yes|' /etc/ssh/sshd_config && \
     sed -i 's|#PermitEmptyPasswords no|PermitEmptyPasswords yes|' /etc/ssh/sshd_config && \
@@ -127,7 +131,7 @@ RUN mkdir /var/run/sshd && \
     ssh-keygen -A
 
 # Switch to the new user
-USER user
+USER sfangyy
 # Set the default shell to bash
 SHELL ["/bin/bash", "-c"]
 # Set working directory

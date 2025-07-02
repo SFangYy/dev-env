@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 将此脚本的输出重定向到日志文件以便调试
-exec > /home/user/.vnc/xstartup.log 2>&1
+exec > /home/sfangyy/.vnc/xstartup.log 2>&1
 
 echo "Starting XFCE4 session..."
 
