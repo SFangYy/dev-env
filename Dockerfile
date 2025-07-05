@@ -16,7 +16,7 @@ RUN apt update && \
 RUN sed -i 's|http|https|g' /etc/apt/sources.list 
 
 # Set the timezone to France
-ENV TZ=Europe/Paris
+ENV TZ=Asia/Shanghai
 RUN apt-get update && \
     apt-get install -y --no-install-recommends tzdata && \
     ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && \
@@ -25,7 +25,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     ca-certificates \
     build-essential \
     git \
@@ -57,6 +57,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     net-tools \
     dos2unix \
     lsb \
+    openssh-server \
+    tigervnc-standalone-server \
+    xfce4 xfce4-goodies \
+    lightdm  \
     help2man && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
