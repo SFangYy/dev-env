@@ -1,13 +1,10 @@
-# Use Ubuntu 22.04 as the base image
-FROM ubuntu:22.04
+# Use Ubuntu 24.04 as the base image
+FROM catthehacker/ubuntu:act-latest
 
 # Set non-interactive installation
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Set the locale
-ENV LANG=C.UTF-8
-ENV LANGUAGE=C.UTF-8
-ENV LC_ALL=C.UTF-8
 # Use https for apt repositories
 RUN apt update && \
     apt install -y --no-install-recommends apt-transport-https ca-certificates && \
@@ -25,7 +22,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     build-essential \
     git \
@@ -34,6 +31,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     vim \
     software-properties-common \
+    python3 \
+    python3-pip \
+    python3-dev \
     libpcre3-dev \
     pkg-config \
     libfl-dev \
@@ -48,29 +48,15 @@ RUN apt-get update && apt-get install -y \
     autoconf \
     automake \
     libtool \
+    time \
     openjdk-17-jdk \
     libpcre2-dev \
-    net-tools \
-    dos2unix \
-    lsb \
-    openssh-server \
-    tigervnc-standalone-server \
-    xfce4 xfce4-goodies \
-    lightdm  \
     help2man && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-
-# Install Python3.12 
-RUN add-apt-repository ppa:deadsnakes/ppa && apt-get update && \
-    apt-get install -y \
-    python3.12 \ 
-    python3.12-venv \
-    python3.12-dev \ 
-    python3-pip && \ 
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get purge --auto-remove cmake -y || true 
 
 # Install SWIG (4.2.1)d
 RUN git clone https://github.com/swig/swig.git -b v4.2.1 --depth=1 /tmp/swig && \
@@ -80,6 +66,7 @@ RUN git clone https://github.com/swig/swig.git -b v4.2.1 --depth=1 /tmp/swig && 
     make -j$(nproc) && \
     make install && \
     rm -rf /tmp/swig
+
 
 # Set up Kitware repository and install the latest CMake
 RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | \
@@ -98,7 +85,7 @@ RUN git clone https://github.com/verilator/verilator -b v5.018 --depth=1 /tmp/ve
     ./configure --prefix=/usr/local && \
     make -j$(nproc) && make test && \
     make install && \
-    rm -rf /tmp/verilator
+    rm -rf /tmp/verilator 
 
 # Verify Dependency installations
 RUN swig -version && \
@@ -121,29 +108,5 @@ RUN mkdir /workspace && \
     make clean && \
     chmod 755 /usr/local/bin -R 
 
-# set user and password
-RUN useradd -m -s /bin/bash sfangyy && \
-    echo "sfangyy:192837" | chpasswd && \
-    adduser sfangyy sudo && \
-    echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
-    chown sfangyy:sfangyy -R /workspace && \
-    chmod 755 /workspace
+# Get XS-Pdb
 
-# Set SSH autostart
-RUN mkdir /var/run/sshd && \
-    echo 'root:root' | chpasswd && \
-    echo 'sfangyy:192837' | chpasswd && \
-    sed -i 's|#PermitRootLogin prohibit-password|PermitRootLogin yes|' /etc/ssh/sshd_config && \
-    sed -i 's|#PasswordAuthentication yes|PasswordAuthentication yes|' /etc/ssh/sshd_config && \
-    sed -i 's|#PermitEmptyPasswords no|PermitEmptyPasswords yes|' /etc/ssh/sshd_config && \
-    sed -i 's|#Port 22|Port 51202|' /etc/ssh/sshd_config && \
-    # only listen on localhost
-    sed -i 's|#ListenAddress|ListenAddress 127.0.0.1 #|' /etc/ssh/sshd_config && \
-    ssh-keygen -A
-
-# Switch to the new user
-USER sfangyy
-# Set the default shell to bash
-SHELL ["/bin/bash", "-c"]
-# Set working directory
-WORKDIR /workspace

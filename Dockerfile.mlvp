@@ -1,5 +1,5 @@
-# Use Ubuntu 22.04 as the base image
-FROM ubuntu:22.04
+# Use Ubuntu 24.04 as the base image
+FROM ghcr.io/openxiangshan/xs-env:ubuntu-24.04
 
 # Set non-interactive installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -25,7 +25,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     build-essential \
     git \
@@ -34,6 +34,10 @@ RUN apt-get update && apt-get install -y \
     curl \
     vim \
     software-properties-common \
+    python3 \
+    python3-pip \
+    python3-dev \
+    python3-venv \
     libpcre3-dev \
     pkg-config \
     libfl-dev \
@@ -50,25 +54,8 @@ RUN apt-get update && apt-get install -y \
     libtool \
     openjdk-17-jdk \
     libpcre2-dev \
-    net-tools \
-    dos2unix \
-    lsb \
-    openssh-server \
-    tigervnc-standalone-server \
-    xfce4 xfce4-goodies \
-    lightdm  \
+    lcov \
     help2man && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-
-# Install Python3.12 
-RUN add-apt-repository ppa:deadsnakes/ppa && apt-get update && \
-    apt-get install -y \
-    python3.12 \ 
-    python3.12-venv \
-    python3.12-dev \ 
-    python3-pip && \ 
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -91,14 +78,34 @@ RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/nul
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Verilator (5.0 series latest version, e.g. v5.018)
-RUN git clone https://github.com/verilator/verilator -b v5.018 --depth=1 /tmp/verilator && \
-    cd /tmp/verilator && \
-    autoconf && \
-    ./configure --prefix=/usr/local && \
-    make -j$(nproc) && make test && \
-    make install && \
-    rm -rf /tmp/verilator
+# Set up Nodejs 
+RUN mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set up Hugo 
+ARG HUGO_VERSION="0.145.0" # 请替换为你需要的 Hugo 版本
+RUN curl -sL "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb" -o /tmp/hugo.deb && \
+    dpkg -i /tmp/hugo.deb && \
+    rm /tmp/hugo.deb && \
+    # 清理不再需要的安装包和缓存
+    apt-get purge -y --auto-remove curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set up Go 
+RUN add-apt-repository -y ppa:longsleep/golang-backports && \
+    apt-get update && \
+    apt-get install -y golang-go && \
+    rm -rf /var/lib/apt/lists/*
+    # 清理不再需要的安装包和缓存
+
+# Set up doc dependencies 
+RUN npm install -D autoprefixer && \
+    npm install -D postcss-cli && \
+    npm install -D postcss
 
 # Verify Dependency installations
 RUN swig -version && \
@@ -122,27 +129,37 @@ RUN mkdir /workspace && \
     chmod 755 /usr/local/bin -R 
 
 # set user and password
-RUN useradd -m -s /bin/bash sfangyy && \
-    echo "sfangyy:192837" | chpasswd && \
-    adduser sfangyy sudo && \
+RUN useradd -m -s /bin/bash user && \
+    echo "user:user" | chpasswd && \
+    adduser user sudo && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
-    chown sfangyy:sfangyy -R /workspace && \
+    chown user:user -R /workspace && \
     chmod 755 /workspace
 
-# Set SSH autostart
-RUN mkdir /var/run/sshd && \
-    echo 'root:root' | chpasswd && \
-    echo 'sfangyy:192837' | chpasswd && \
-    sed -i 's|#PermitRootLogin prohibit-password|PermitRootLogin yes|' /etc/ssh/sshd_config && \
-    sed -i 's|#PasswordAuthentication yes|PasswordAuthentication yes|' /etc/ssh/sshd_config && \
-    sed -i 's|#PermitEmptyPasswords no|PermitEmptyPasswords yes|' /etc/ssh/sshd_config && \
-    sed -i 's|#Port 22|Port 51202|' /etc/ssh/sshd_config && \
-    # only listen on localhost
-    sed -i 's|#ListenAddress|ListenAddress 127.0.0.1 #|' /etc/ssh/sshd_config && \
-    ssh-keygen -A
-
 # Switch to the new user
-USER sfangyy
+USER user
+
+# Install Toffee 
+RUN python3 -m venv /workspace/venv && \
+    source /workspace/venv/bin/activate && \
+    pip install toffee-test && \
+    pip install pytoffee
+
+# Init Unitchip for Xiangshan
+RUN source /workspace/venv/bin/activate && \
+    cd /workspace && \
+    git clone https://github.com/XS-MLVP/UnityChipForXiangShan.git && \
+    cd UnityChipForXiangShan/ && \
+    pip3 install -r requirements.txt && \
+    make rtl 
+    #make dut DUTS=ut_frontend_icache_iprefetchpipe && \
+    #make test target=ut_frontend/icache/iprefetchpipe/ && \
+    #nohup make doc 
+
+# Init hugo 
+Run cd /workspace/UnityChipForXiangShan/documents/ && \
+    hugo mod tidy 
+
 # Set the default shell to bash
 SHELL ["/bin/bash", "-c"]
 # Set working directory
